@@ -78,7 +78,7 @@ mod hamming_tests {
         type Input = u16;
         type Output = u32;
 
-        fn encode(data: Self::Input) -> Result<Self::Output, EccError> {
+        fn encode(&self, data: Self::Input) -> Result<Self::Output, EccError> {
             let mut codeword: u32 = data as u32;
 
             // Вычисляем контрольные биты
@@ -90,7 +90,7 @@ mod hamming_tests {
             Ok(codeword)
         }
 
-        fn decode(codeword: Self::Output) -> Result<Self::Input, EccError> {
+        fn decode(&self, codeword: Self::Output) -> Result<Self::Input, EccError> {
             let mut error_pos = 0;
 
             // Проверяем контрольные биты
@@ -127,7 +127,7 @@ mod hamming_tests {
     #[test]
     fn test_hamming_encode() {
         let data: u16 = 0b1010101010101010; // Пример данных
-        let encoded = HammingECC16::encode(data).expect("Encoding failed");
+        let encoded = HammingECC16::encode(&HammingECC16, data).expect("Encoding failed");
 
         // Убедимся, что данные сохранены в младших 16 битах
         assert_eq!(encoded & 0xFFFF, data as u32, "Данные не совпадают");
@@ -136,8 +136,8 @@ mod hamming_tests {
     #[test]
     fn test_hamming_decode_no_errors() {
         let data: u16 = 0b1010101010101010;
-        let encoded = HammingECC16::encode(data).expect("Encoding failed");
-        let decoded = HammingECC16::decode(encoded).expect("Decoding failed");
+        let encoded = HammingECC16::encode(&HammingECC16, data).expect("Encoding failed");
+        let decoded = HammingECC16::decode(&HammingECC16, encoded).expect("Decoding failed");
 
         assert_eq!(decoded, data, "Декодированные данные не совпадают");
     }
@@ -145,12 +145,12 @@ mod hamming_tests {
     #[test]
     fn test_hamming_decode_single_error() {
         let data: u16 = 0b1010101010101010;
-        let mut encoded = HammingECC16::encode(data).expect("Encoding failed");
+        let mut encoded = HammingECC16::encode(&HammingECC16, data).expect("Encoding failed");
 
         // Инвертируем один бит
         encoded ^= 1 << 0;
 
-        let decoded = HammingECC16::decode(encoded).expect("Decoding failed");
+        let decoded = HammingECC16::decode(&HammingECC16, encoded).expect("Decoding failed");
 
         assert_eq!(decoded, data, "Декодированные данные не совпадают после исправления");
     }
@@ -158,13 +158,13 @@ mod hamming_tests {
     #[test]
     fn test_hamming_decode_double_error() {
         let data: u16 = 0b1010101010101010;
-        let mut encoded = HammingECC16::encode(data).expect("Encoding failed");
+        let mut encoded = HammingECC16::encode(&HammingECC16, data).expect("Encoding failed");
 
         // Инвертируем два бита
         encoded ^= 1 << 0;
         encoded ^= 1 << 1;
 
-        let result = HammingECC16::decode(encoded);
+        let result = HammingECC16::decode(&HammingECC16, encoded);
 
         // Двойная ошибка не должна быть исправлена
         assert!(result.is_err(), "Двойная ошибка не должна быть исправлена");
@@ -173,8 +173,8 @@ mod hamming_tests {
     #[test]
     fn test_hamming_all_zeroes() {
         let data: u16 = 0;
-        let encoded = HammingECC16::encode(data).expect("Encoding failed");
-        let decoded = HammingECC16::decode(encoded).expect("Decoding failed");
+        let encoded = HammingECC16::encode(&HammingECC16, data).expect("Encoding failed");
+        let decoded = HammingECC16::decode(&HammingECC16, encoded).expect("Decoding failed");
 
         assert_eq!(decoded, data, "Все нули декодированы некорректно");
     }
@@ -182,8 +182,8 @@ mod hamming_tests {
     #[test]
     fn test_hamming_all_ones() {
         let data: u16 = 0xFFFF;
-        let encoded = HammingECC16::encode(data).expect("Encoding failed");
-        let decoded = HammingECC16::decode(encoded).expect("Decoding failed");
+        let encoded = HammingECC16::encode(&HammingECC16, data).expect("Encoding failed");
+        let decoded = HammingECC16::decode(&HammingECC16, encoded).expect("Decoding failed");
 
         assert_eq!(decoded, data, "Все единицы декодированы некорректно");
     }
