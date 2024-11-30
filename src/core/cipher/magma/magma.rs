@@ -1,13 +1,13 @@
-use crate::core::magma::consts::*;
-use crate::core::magma::*;
+use crate::core::cipher::magma::consts::*;
+use crate::core::cipher::{magma::*, Cipher, CipherError};
 
-pub struct CipherBuilder {
+pub struct MagmaBuilder {
     pub (crate) key: Option<[u32; 8]>,
     pub (crate) round_keys: Option<[u32; 32]>,
     pub (crate) sbox: Option<[u8; 128]>
 }
 
-impl CipherBuilder {
+impl MagmaBuilder {
     pub fn new() -> Self {
         Self { key: None, round_keys: None, sbox: None}
     }
@@ -27,12 +27,12 @@ impl CipherBuilder {
         self
     }
 
-    pub fn build(&mut self) -> Cipher {
+    pub fn build(&mut self) -> Magma {
         self.into()
     }
 }
 
-impl Default for CipherBuilder {
+impl Default for MagmaBuilder {
     fn default() -> Self {
         Self {
             key: Some([0u32; 8]),
@@ -42,14 +42,14 @@ impl Default for CipherBuilder {
     }
 }
 
-impl From<&mut CipherBuilder> for Cipher {
-    fn from(value: &mut CipherBuilder) -> Self {
-        if let &mut CipherBuilder { 
+impl From<&mut MagmaBuilder> for Magma {
+    fn from(value: &mut MagmaBuilder) -> Self {
+        if let &mut MagmaBuilder { 
             key: Some(k),
             round_keys: Some(rk),
             sbox: Some(sbox)
         } = value {
-            Cipher::new(k, rk, sbox)
+            Magma::new(k, rk, sbox)
         } else {
             loop {}
         }
@@ -57,13 +57,13 @@ impl From<&mut CipherBuilder> for Cipher {
 }
 
 
-pub struct Cipher {
+pub struct Magma {
     pub (crate) key: [u32; 8],
     pub (crate) round_keys: [u32; 32],
     pub (crate) sbox: [u8; 128]
 }
 
-impl Cipher {
+impl Magma {
     // Constructs cipher
     pub fn new(key: [u32; 8], round_keys: [u32; 32], sbox: [u8; 128]) -> Self {
         let mut me = Self {
@@ -77,47 +77,7 @@ impl Cipher {
 
     }
 
-    /// Returns [encrypted block](https://datatracker.ietf.org/doc/html/rfc8891.html#section-5.1) as `u64` value
-    ///
-    /// # Arguments
-    ///
-    /// * `block_in` - a plaintext value as `u64`
-    #[inline]
-    pub fn encrypt(&self, block_in: u64) -> u64 {
-        // split the input block into u32 parts
-        let (mut a_1, mut a_0) = utils::u64_split(block_in);
-
-        // crypto transformations
-        let mut round = 0;
-        while round < 32 {
-            (a_1, a_0) = self.transformation_big_g(self.round_keys[round], a_1, a_0);
-            round += 1;
-        }
-
-        // join u32 parts into u64 block
-        utils::u32_join(a_0, a_1)
-    }
-
-    /// Returns [decrypted block](https://datatracker.ietf.org/doc/html/rfc8891.html#section-5.2) as `u64` value
-    ///
-    /// # Arguments
-    ///
-    /// * `block_in` - a ciphertext value as `u64`
-    #[inline]
-    pub fn decrypt(&self, block_in: u64) -> u64 {
-        // split the input block into u32 parts
-        let (mut b_1, mut b_0) = utils::u64_split(block_in);
-
-        // crypto transformations
-        let mut round = 32;
-        while round != 0 {
-            round -= 1;
-            (b_1, b_0) = self.transformation_big_g(self.round_keys[round], b_1, b_0);
-        }
-
-        // join u32 parts into u64 block
-        utils::u32_join(b_0, b_1)
-    }
+    
 
     pub(crate) fn set_key_u32(&mut self, key: &[u32; 8]) {
         self.key.clone_from(key);
@@ -191,6 +151,52 @@ impl Cipher {
 
 }
 
+impl Cipher for Magma {
+    type Input = u64;
+    type Output = u64;
+    /// Returns [encrypted block](https://datatracker.ietf.org/doc/html/rfc8891.html#section-5.1) as `u64` value
+    ///
+    /// # Arguments
+    ///
+    /// * `block_in` - a plaintext value as `u64`
+    #[inline]
+    fn encrypt(&self, block_in: Self::Input) -> Result<Self::Output, CipherError> {
+        // split the input block into u32 parts
+        let (mut a_1, mut a_0) = utils::u64_split(block_in);
+
+        // crypto transformations
+        let mut round = 0;
+        while round < 32 {
+            (a_1, a_0) = self.transformation_big_g(self.round_keys[round], a_1, a_0);
+            round += 1;
+        }
+
+        // join u32 parts into u64 block
+        Ok(utils::u32_join(a_0, a_1))
+    }
+
+    /// Returns [decrypted block](https://datatracker.ietf.org/doc/html/rfc8891.html#section-5.2) as `u64` value
+    ///
+    /// # Arguments
+    ///
+    /// * `block_in` - a ciphertext value as `u64`
+    #[inline]
+    fn decrypt(&self, block_in: Self::Output) -> Result<Self::Input, CipherError> {
+        // split the input block into u32 parts
+        let (mut b_1, mut b_0) = utils::u64_split(block_in);
+
+        // crypto transformations
+        let mut round = 32;
+        while round != 0 {
+            round -= 1;
+            (b_1, b_0) = self.transformation_big_g(self.round_keys[round], b_1, b_0);
+        }
+
+        // join u32 parts into u64 block
+        Ok(utils::u32_join(b_0, b_1))
+    }
+}
+
 
  #[cfg(test)]
 mod magma_test {
@@ -198,7 +204,7 @@ mod magma_test {
 
     #[test]
     fn initialization() {
-        let mut magma = CipherBuilder::new()
+        let magma = MagmaBuilder::new()
             .set_key([0u32;8])
             .set_round_keys([0u32; 32])
             .set_sbox(SBOX)
@@ -214,11 +220,11 @@ mod magma_test {
         // Test vectors RFC8891:
         // https://datatracker.ietf.org/doc/html/rfc8891.html#name-test-encryption
         use crate::test_purpose;
-        let mut magma = CipherBuilder::default()
+        let magma = MagmaBuilder::default()
             .set_key(test_purpose::CIPHER_KEY)
             .build();
 
-        assert_eq!(magma.encrypt(test_purpose::PLAINTEXT), test_purpose::CIPHERTEXT);
+        assert_eq!(magma.encrypt(test_purpose::PLAINTEXT).unwrap(), test_purpose::CIPHERTEXT);
     }
 
     #[test]
@@ -227,16 +233,16 @@ mod magma_test {
         // https://datatracker.ietf.org/doc/html/rfc8891.html#name-test-decryption
 
         use crate::test_purpose::{CIPHER_KEY, PLAINTEXT, CIPHERTEXT};
-        let mut magma = CipherBuilder::default()
+        let magma = MagmaBuilder::default()
             .set_key(CIPHER_KEY)
             .build();
 
-        assert_eq!(magma.decrypt(CIPHERTEXT), PLAINTEXT);
+        assert_eq!(magma.decrypt(CIPHERTEXT).unwrap(), PLAINTEXT);
     }
 
     #[test]
     fn correctness() {
-        let mut magma = CipherBuilder::default().build();
-        assert_eq!(magma.decrypt(magma.encrypt(123u64)), 123u64);
+        let magma = MagmaBuilder::default().build();
+        assert_eq!(magma.decrypt(magma.encrypt(123u64).unwrap()).unwrap(), 123u64);
     }
 }

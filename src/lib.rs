@@ -1,7 +1,7 @@
 #![no_std]
 #![allow(dead_code)]
 
-mod core;
+pub mod core;
 mod test_purpose;
 
 
