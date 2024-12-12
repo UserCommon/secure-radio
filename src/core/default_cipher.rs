@@ -12,6 +12,15 @@ pub struct DefaultCipher {
     error_correction: HammingECC16
 }
 
+impl Default for DefaultCipher {
+    fn default() -> Self {
+        Self {
+            crypto: MagmaBuilder::default().build(),
+            error_correction: HammingECC16
+        }
+    }
+}
+
 impl Cipher for DefaultCipher {
     type Input = u64;
     type Output = u64;
