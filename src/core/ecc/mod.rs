@@ -1,4 +1,4 @@
-pub mod hamming;
+pub mod hamming_7_4;
 
 #[derive(Debug)]
 pub enum EccError {
