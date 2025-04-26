@@ -1,6 +1,6 @@
 use magma::utils;
 
-use super::{GeneralCipher, GeneralCipherError};
+use crate::core::{GeneralCipher, GeneralCipherError};
 use crate::core::cipher::magma::magma::*;
 use crate::core::cipher::*;
 use crate::core::ecc::*;

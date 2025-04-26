@@ -1,4 +1,5 @@
 pub mod hamming_7_4;
+pub mod repetition_code;
 
 #[derive(Debug)]
 pub enum EccError {
